@@ -18,4 +18,7 @@ func RegisterAuthRoutes(router *gin.Engine, controller *controller.AuthControlle
 	auth.POST("/login", func(c *gin.Context) {
 		controller.Login(c.Writer, c.Request)
 	})
+	auth.POST("/google", func(c *gin.Context) {
+		controller.GoogleLogin(c.Writer, c.Request)
+	})
 }

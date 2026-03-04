@@ -39,3 +39,7 @@ type LoginResponse struct {
 	User  *UserResponse `json:"user"`
 	Token string        `json:"token"`
 }
+
+type GoogleLoginRequest struct {
+	IDToken string `json:"id_token"`
+}

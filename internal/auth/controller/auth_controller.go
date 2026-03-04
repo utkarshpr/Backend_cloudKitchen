@@ -152,3 +152,72 @@ func (a *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 	util.Info(ctx, "controller.Login response sent for user=%s", user.ID)
 }
+
+func (a *AuthController) GoogleLogin(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+	requestID := ctx.Value(constants.RequestIDKey).(string)
+	util.Info(ctx, "controller.GoogleLogin received request id=%s", requestID)
+
+	var req model.GoogleLoginRequest
+
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		util.Error(ctx, "controller.GoogleLogin invalid body: %v", err)
+		resp := util.APIResponse{
+			RequestID: requestID,
+			Success:   false,
+			Message:   constants.InvalidRequestBody,
+			ErrorCode: constants.ErrInvalidRequest,
+			Data:      nil,
+		}
+
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(resp)
+
+		return
+	}
+
+	user, token, err := a.service.GoogleLogin(ctx, req.IDToken)
+
+	if err != nil {
+		util.Error(ctx, "controller.GoogleLogin service error: %v", err)
+		resp := util.APIResponse{
+			RequestID: requestID,
+			Success:   false,
+			Message:   err.Error(),
+			ErrorCode: constants.ErrGoogleLoginFailed,
+			Data:      nil,
+		}
+
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+
+	util.Info(ctx, "controller.GoogleLogin service returned user=%s", user.ID)
+
+	userResponse := &model.UserResponse{
+		ID:        user.ID,
+		Name:      user.Name,
+		Email:     user.Email,
+		Provider:  user.Provider,
+		CreatedAt: user.CreatedAt,
+	}
+
+	data := model.LoginResponse{
+		User:  userResponse,
+		Token: token,
+	}
+
+	resp := util.APIResponse{
+		RequestID: requestID,
+		Success:   true,
+		Message:   "google login successful",
+		Data:      data,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+	util.Info(ctx, "controller.GoogleLogin response sent for user=%s", user.ID)
+}

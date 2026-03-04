@@ -6,13 +6,66 @@ import (
 	"cloud-kitchen/pkg/util"
 	"context"
 	"errors"
+	"os"
 
 	"github.com/google/uuid"
+	"google.golang.org/api/idtoken"
 )
 
 type AuthService interface {
 	Signup(req *model.SignupRequest, ctx context.Context) (*model.User, string, error)
 	Login(req *model.LoginRequest, ctx context.Context) (*model.User, string, error)
+	GoogleLogin(ctx context.Context, idToken string) (*model.User, string, error)
+}
+
+func (s *authService) GoogleLogin(ctx context.Context, idToken string) (*model.User, string, error) {
+	util.Info(ctx, "service.GoogleLogin start")
+
+	var GoogleClientID = os.Getenv("GOOGLE_CLIENT_ID")
+	payload, err := idtoken.Validate(ctx, idToken, GoogleClientID)
+	if err != nil {
+		util.Error(ctx, "service.GoogleLogin token validation failed: %v", err)
+		return nil, "", errors.New("invalid google token")
+	}
+
+	email := payload.Claims["email"].(string)
+	name := payload.Claims["name"].(string)
+	util.Info(ctx, "service.GoogleLogin token validated email=%s name=%s", email, name)
+
+	user, err := s.repo.GetUserByEmail(ctx, email)
+	if err != nil {
+		util.Error(ctx, "service.GoogleLogin GetUserByEmail error: %v", err)
+		return nil, "", err
+	}
+
+	if user == nil {
+		util.Info(ctx, "service.GoogleLogin user not found, creating new user email=%s", email)
+
+		user = &model.User{
+			ID:       uuid.New().String(),
+			Name:     name,
+			Email:    email,
+			Provider: "google",
+		}
+
+		err := s.repo.CreateUser(ctx, user)
+		if err != nil {
+			util.Error(ctx, "service.GoogleLogin CreateUser failed: %v", err)
+			return nil, "", err
+		}
+		util.Info(ctx, "service.GoogleLogin user created id=%s", user.ID)
+	} else {
+		util.Info(ctx, "service.GoogleLogin existing user found id=%s", user.ID)
+	}
+
+	token, err := util.GenerateJWT(user.ID)
+	if err != nil {
+		util.Error(ctx, "service.GoogleLogin GenerateJWT failed: %v", err)
+		return nil, "", err
+	}
+
+	util.Info(ctx, "service.GoogleLogin success user=%s tokenLen=%d", user.ID, len(token))
+	return user, token, nil
 }
 
 type authService struct {

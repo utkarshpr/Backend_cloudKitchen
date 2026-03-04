@@ -23,3 +23,7 @@ const (
 type ContextKey string
 
 const RequestIDKey ContextKey = "request_id"
+
+const (
+	ErrGoogleLoginFailed = "GOOGLE_LOGIN_FAILED"
+)
