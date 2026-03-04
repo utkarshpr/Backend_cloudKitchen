@@ -24,8 +24,11 @@ func (a *AuthController) Signup(w http.ResponseWriter, r *http.Request) {
 	var req model.SignupRequest
 	ctx := r.Context()
 	requestID := ctx.Value(constants.RequestIDKey).(string)
+	util.Info(ctx, "controller.Signup received request id=%s", requestID)
+
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
+		util.Error(ctx, "controller.Signup invalid body: %v", err)
 
 		resp := util.APIResponse{
 			RequestID: requestID,
@@ -41,8 +44,8 @@ func (a *AuthController) Signup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user, token, err := a.service.Signup(&req, ctx)
-
 	if err != nil {
+		util.Error(ctx, "controller.Signup service error: %v", err)
 
 		resp := util.APIResponse{
 			RequestID: requestID,
@@ -56,10 +59,19 @@ func (a *AuthController) Signup(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(resp)
 		return
 	}
+	util.Info(ctx, "controller.Signup service returned user=%s", user.ID)
 
-	data := map[string]interface{}{
-		"user":  user,
-		"token": token,
+	userResponse := &model.UserResponse{
+		ID:        user.ID,
+		Name:      user.Name,
+		Email:     user.Email,
+		Provider:  user.Provider,
+		CreatedAt: user.CreatedAt,
+	}
+
+	data := &model.SignupResponse{
+		User:  userResponse,
+		Token: token,
 	}
 
 	resp := util.APIResponse{
@@ -71,6 +83,7 @@ func (a *AuthController) Signup(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
+	util.Info(ctx, "controller.Signup response sent for user=%s", user.ID)
 }
 
 func (a *AuthController) Login(w http.ResponseWriter, r *http.Request) {
@@ -78,9 +91,11 @@ func (a *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 	var req model.LoginRequest
 	ctx := r.Context()
 	requestID := ctx.Value(constants.RequestIDKey).(string)
+	util.Info(ctx, "controller.Login received request id=%s", requestID)
 
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
+		util.Error(ctx, "controller.Login invalid body: %v", err)
 
 		resp := util.APIResponse{
 			RequestID: requestID,
@@ -96,8 +111,8 @@ func (a *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user, token, err := a.service.Login(&req, ctx)
-
 	if err != nil {
+		util.Error(ctx, "controller.Login service error: %v", err)
 
 		resp := util.APIResponse{
 			RequestID: requestID,
@@ -111,10 +126,19 @@ func (a *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(resp)
 		return
 	}
+	util.Info(ctx, "controller.Login service returned user=%s", user.ID)
 
-	data := map[string]interface{}{
-		"user":  user,
-		"token": token,
+	userResponse := &model.UserResponse{
+		ID:        user.ID,
+		Name:      user.Name,
+		Email:     user.Email,
+		Provider:  user.Provider,
+		CreatedAt: user.CreatedAt,
+	}
+
+	data := &model.LoginResponse{
+		User:  userResponse,
+		Token: token,
 	}
 
 	resp := util.APIResponse{
@@ -126,4 +150,5 @@ func (a *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
+	util.Info(ctx, "controller.Login response sent for user=%s", user.ID)
 }

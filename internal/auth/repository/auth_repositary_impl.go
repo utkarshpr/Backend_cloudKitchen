@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"cloud-kitchen/internal/auth/model"
+	"cloud-kitchen/pkg/util"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -18,7 +19,8 @@ func NewAuthRepository(db *pgxpool.Pool) AuthRepository {
 	}
 }
 
-func (r *PostgresAuthRepository) CreateUser(user *model.User) error {
+func (r *PostgresAuthRepository) CreateUser(ctx context.Context, user *model.User) error {
+	util.Info(ctx, "repository.CreateUser user=%s email=%s", user.ID, user.Email)
 
 	query := `
 	INSERT INTO users (id, name, email, password, provider)
@@ -26,7 +28,7 @@ func (r *PostgresAuthRepository) CreateUser(user *model.User) error {
 	`
 
 	_, err := r.db.Exec(
-		context.Background(),
+		ctx,
 		query,
 		user.ID,
 		user.Name,
@@ -35,10 +37,14 @@ func (r *PostgresAuthRepository) CreateUser(user *model.User) error {
 		user.Provider,
 	)
 
+	if err != nil {
+		util.Error(ctx, "repository.CreateUser error=%v", err)
+	}
 	return err
 }
 
-func (r *PostgresAuthRepository) GetUserByEmail(email string) (*model.User, error) {
+func (r *PostgresAuthRepository) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
+	util.Info(ctx, "repository.GetUserByEmail email=%s", email)
 
 	query := `
 	SELECT id, name, email, password, provider
@@ -46,7 +52,7 @@ func (r *PostgresAuthRepository) GetUserByEmail(email string) (*model.User, erro
 	WHERE email=$1
 	`
 
-	row := r.db.QueryRow(context.Background(), query, email)
+	row := r.db.QueryRow(ctx, query, email)
 
 	var user model.User
 
@@ -59,6 +65,7 @@ func (r *PostgresAuthRepository) GetUserByEmail(email string) (*model.User, erro
 	)
 
 	if err != nil {
+		util.Info(ctx, "repository.GetUserByEmail not found or error=%v", err)
 		return nil, nil
 	}
 
