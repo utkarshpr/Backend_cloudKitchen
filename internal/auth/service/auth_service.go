@@ -4,14 +4,15 @@ import (
 	"cloud-kitchen/internal/auth/model"
 	"cloud-kitchen/internal/auth/repository"
 	"cloud-kitchen/pkg/util"
+	"context"
 	"errors"
 
 	"github.com/google/uuid"
 )
 
 type AuthService interface {
-	Signup(name string, email string, password string) (*model.User, string, error)
-	Login(email string, password string) (*model.User, string, error)
+	Signup(req *model.SignupRequest, ctx context.Context) (*model.User, string, error)
+	Login(req *model.LoginRequest, ctx context.Context) (*model.User, string, error)
 }
 
 type authService struct {
@@ -24,9 +25,12 @@ func NewAuthService(repo repository.AuthRepository) AuthService {
 	}
 }
 
-func (s *authService) Signup(name string, email string, password string) (*model.User, string, error) {
+func (s *authService) Signup(req *model.SignupRequest, ctx context.Context) (*model.User, string, error) {
+	name := req.Name
+	email := req.Email
+	password := req.Password
 
-	existingUser, _ := s.repo.GetUserByEmail(email)
+	existingUser, _ := s.repo.GetUserByEmail(req.Email)
 
 	if existingUser != nil {
 		return nil, "", errors.New("user already exists")
@@ -58,7 +62,9 @@ func (s *authService) Signup(name string, email string, password string) (*model
 	return user, token, nil
 }
 
-func (s *authService) Login(email string, password string) (*model.User, string, error) {
+func (s *authService) Login(req *model.LoginRequest, ctx context.Context) (*model.User, string, error) {
+	email := req.Email
+	password := req.Password
 
 	user, err := s.repo.GetUserByEmail(email)
 	if err != nil {

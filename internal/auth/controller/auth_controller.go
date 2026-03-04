@@ -1,10 +1,12 @@
 package controller
 
 import (
+	"cloud-kitchen/internal/auth/model"
 	"cloud-kitchen/internal/auth/service"
+	"cloud-kitchen/pkg/constants"
+	"cloud-kitchen/pkg/util"
+	"encoding/json"
 	"net/http"
-
-	"github.com/gin-gonic/gin"
 )
 
 type AuthController struct {
@@ -17,63 +19,111 @@ func NewAuthController(service service.AuthService) *AuthController {
 	}
 }
 
-func (a *AuthController) Signup(c *gin.Context) {
+func (a *AuthController) Signup(w http.ResponseWriter, r *http.Request) {
 
-	var req struct {
-		Name     string `json:"name"`
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
+	var req model.SignupRequest
+	ctx := r.Context()
+	requestID := ctx.Value(constants.RequestIDKey).(string)
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid request",
-		})
+		resp := util.APIResponse{
+			RequestID: requestID,
+			Success:   false,
+			Message:   constants.InvalidRequestBody,
+			ErrorCode: constants.ErrInvalidRequest,
+			Data:      nil,
+		}
+
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(resp)
 		return
 	}
 
-	user, token, err := a.service.Signup(req.Name, req.Email, req.Password)
+	user, token, err := a.service.Signup(&req, ctx)
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": err.Error(),
-		})
+
+		resp := util.APIResponse{
+			RequestID: requestID,
+			Success:   false,
+			Message:   err.Error(),
+			ErrorCode: constants.ErrSignupFailed,
+			Data:      nil,
+		}
+
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(resp)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	data := map[string]interface{}{
 		"user":  user,
 		"token": token,
-	})
+	}
+
+	resp := util.APIResponse{
+		RequestID: requestID,
+		Success:   true,
+		Message:   constants.SignupSuccess,
+		Data:      data,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
 }
 
-func (a *AuthController) Login(c *gin.Context) {
+func (a *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 
-	var req struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
+	var req model.LoginRequest
+	ctx := r.Context()
+	requestID := ctx.Value(constants.RequestIDKey).(string)
 
-	if err := c.ShouldBindJSON(&req); err != nil {
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "invalid request",
-		})
+		resp := util.APIResponse{
+			RequestID: requestID,
+			Success:   false,
+			Message:   constants.InvalidRequestBody,
+			ErrorCode: constants.ErrInvalidRequest,
+			Data:      nil,
+		}
+
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(resp)
 		return
 	}
 
-	user, token, err := a.service.Login(req.Email, req.Password)
+	user, token, err := a.service.Login(&req, ctx)
 
 	if err != nil {
 
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": err.Error(),
-		})
+		resp := util.APIResponse{
+			RequestID: requestID,
+			Success:   false,
+			Message:   constants.InvalidCredentials,
+			ErrorCode: constants.ErrInvalidCredsCode,
+			Data:      nil,
+		}
+
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(resp)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	data := map[string]interface{}{
 		"user":  user,
 		"token": token,
-	})
+	}
+
+	resp := util.APIResponse{
+		RequestID: requestID,
+		Success:   true,
+		Message:   constants.LoginSuccess,
+		Data:      data,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
 }
