@@ -26,3 +26,17 @@ func WriteErrorResponse(w http.ResponseWriter, requestID, message, code string, 
 	w.WriteHeader(statusCode)
 	json.NewEncoder(w).Encode(resp)
 }
+
+func WriteSuccessResponse(w http.ResponseWriter, requestID, message, code string, statusCode int, data interface{}) {
+	resp := APIResponse{
+		RequestID: requestID,
+		Success:   true,
+		Message:   message,
+		ErrorCode: code,
+		Data:      data,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(resp)
+}
