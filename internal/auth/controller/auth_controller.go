@@ -43,7 +43,7 @@ func (a *AuthController) Signup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, token, err := a.service.Signup(&req, ctx)
+	user, accessToken, refreshToken, err := a.service.Signup(&req, ctx)
 	if err != nil {
 		util.Error(ctx, "controller.Signup service error: %v", err)
 
@@ -70,8 +70,9 @@ func (a *AuthController) Signup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := &model.SignupResponse{
-		User:  userResponse,
-		Token: token,
+		User:         userResponse,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
 	}
 
 	resp := util.APIResponse{
@@ -110,7 +111,7 @@ func (a *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, token, err := a.service.Login(&req, ctx)
+	user, accessToken, refreshToken, err := a.service.Login(&req, ctx)
 	if err != nil {
 		util.Error(ctx, "controller.Login service error: %v", err)
 
@@ -137,8 +138,9 @@ func (a *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := &model.LoginResponse{
-		User:  userResponse,
-		Token: token,
+		User:         userResponse,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
 	}
 
 	resp := util.APIResponse{
@@ -178,7 +180,7 @@ func (a *AuthController) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, token, err := a.service.GoogleLogin(ctx, req.IDToken)
+	user, accessToken, refreshToken, err := a.service.GoogleLogin(ctx, req.IDToken)
 
 	if err != nil {
 		util.Error(ctx, "controller.GoogleLogin service error: %v", err)
@@ -205,9 +207,10 @@ func (a *AuthController) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 		CreatedAt: user.CreatedAt,
 	}
 
-	data := model.LoginResponse{
-		User:  userResponse,
-		Token: token,
+	data := &model.LoginResponse{
+		User:         userResponse,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
 	}
 
 	resp := util.APIResponse{

@@ -32,12 +32,14 @@ type UserResponse struct {
 
 type SignupResponse struct {
 	User  *UserResponse `json:"user"`
-	Token string        `json:"token"`
+	AccessToken string        `json:"access_token"`
+	RefreshToken string       `json:"refresh_token"`
 }
 
 type LoginResponse struct {
 	User  *UserResponse `json:"user"`
-	Token string        `json:"token"`
+	AccessToken string        `json:"access_token"`
+	RefreshToken string       `json:"refresh_token"`
 }
 
 type GoogleLoginRequest struct {

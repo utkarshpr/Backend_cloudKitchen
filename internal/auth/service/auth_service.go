@@ -13,19 +13,19 @@ import (
 )
 
 type AuthService interface {
-	Signup(req *model.SignupRequest, ctx context.Context) (*model.User, string, error)
-	Login(req *model.LoginRequest, ctx context.Context) (*model.User, string, error)
-	GoogleLogin(ctx context.Context, idToken string) (*model.User, string, error)
+	Signup(req *model.SignupRequest, ctx context.Context) (*model.User, string, string, error)
+	Login(req *model.LoginRequest, ctx context.Context) (*model.User, string, string, error)
+	GoogleLogin(ctx context.Context, idToken string) (*model.User, string, string, error)
 }
 
-func (s *authService) GoogleLogin(ctx context.Context, idToken string) (*model.User, string, error) {
+func (s *authService) GoogleLogin(ctx context.Context, idToken string) (*model.User, string, string, error) {
 	util.Info(ctx, "service.GoogleLogin start")
 
 	var GoogleClientID = os.Getenv("GOOGLE_CLIENT_ID")
 	payload, err := idtoken.Validate(ctx, idToken, GoogleClientID)
 	if err != nil {
 		util.Error(ctx, "service.GoogleLogin token validation failed: %v", err)
-		return nil, "", errors.New("invalid google token")
+		return nil, "", "", errors.New("invalid google token")
 	}
 
 	email := payload.Claims["email"].(string)
@@ -35,7 +35,7 @@ func (s *authService) GoogleLogin(ctx context.Context, idToken string) (*model.U
 	user, err := s.repo.GetUserByEmail(ctx, email)
 	if err != nil {
 		util.Error(ctx, "service.GoogleLogin GetUserByEmail error: %v", err)
-		return nil, "", err
+		return nil, "", "", err
 	}
 
 	if user == nil {
@@ -51,21 +51,27 @@ func (s *authService) GoogleLogin(ctx context.Context, idToken string) (*model.U
 		err := s.repo.CreateUser(ctx, user)
 		if err != nil {
 			util.Error(ctx, "service.GoogleLogin CreateUser failed: %v", err)
-			return nil, "", err
+			return nil, "", "", err
 		}
 		util.Info(ctx, "service.GoogleLogin user created id=%s", user.ID)
 	} else {
 		util.Info(ctx, "service.GoogleLogin existing user found id=%s", user.ID)
 	}
 
-	token, err := util.GenerateJWT(user.ID)
+	accessToken, err := util.GenerateAccessToken(user.ID)
 	if err != nil {
-		util.Error(ctx, "service.GoogleLogin GenerateJWT failed: %v", err)
-		return nil, "", err
+		util.Error(ctx, "service.GoogleLogin GenerateAccessToken failed: %v", err)
+		return nil, "", "", err
 	}
 
-	util.Info(ctx, "service.GoogleLogin success user=%s tokenLen=%d", user.ID, len(token))
-	return user, token, nil
+	refreshToken, err := util.GenerateRefreshToken(user.ID)
+	if err != nil {
+		util.Error(ctx, "service.GoogleLogin GenerateRefreshToken failed: %v", err)
+		return nil, "", "", err
+	}
+
+	util.Info(ctx, "service.GoogleLogin success user=%s", user.ID)
+	return user, accessToken, refreshToken, nil
 }
 
 type authService struct {
@@ -78,7 +84,7 @@ func NewAuthService(repo repository.AuthRepository) AuthService {
 	}
 }
 
-func (s *authService) Signup(req *model.SignupRequest, ctx context.Context) (*model.User, string, error) {
+func (s *authService) Signup(req *model.SignupRequest, ctx context.Context) (*model.User, string, string, error) {
 	util.Info(ctx, "service.Signup start email=%s", req.Email)
 	name := req.Name
 	email := req.Email
@@ -88,13 +94,13 @@ func (s *authService) Signup(req *model.SignupRequest, ctx context.Context) (*mo
 
 	if existingUser != nil {
 		util.Error(ctx, "service.Signup user already exists email=%s", req.Email)
-		return nil, "", errors.New("user already exists")
+		return nil, "", "", errors.New("user already exists")
 	}
 
 	hashedPassword, err := util.HashPassword(password)
 	if err != nil {
 		util.Error(ctx, "service.Signup HashPassword failed: %v", err)
-		return nil, "", err
+		return nil, "", "", err
 	}
 
 	user := &model.User{
@@ -107,21 +113,26 @@ func (s *authService) Signup(req *model.SignupRequest, ctx context.Context) (*mo
 
 	if err = s.repo.CreateUser(ctx, user); err != nil {
 		util.Error(ctx, "service.Signup CreateUser failed: %v", err)
-		return nil, "", err
+		return nil, "", "", err
 	}
 
-	util.Info(ctx, "service.Signup created user id=%s", user.ID)
-	token, err := util.GenerateJWT(user.ID)
+	accessToken, err := util.GenerateAccessToken(user.ID)
 	if err != nil {
-		util.Error(ctx, "service.Signup GenerateJWT failed: %v", err)
-		return nil, "", err
+		util.Error(ctx, "service.Signup GenerateAccessToken failed: %v", err)
+		return nil, "", "", err
 	}
 
-	util.Info(ctx, "service.Signup success user=%s tokenLen=%d", user.ID, len(token))
-	return user, token, nil
+	refreshToken, err := util.GenerateRefreshToken(user.ID)
+	if err != nil {
+		util.Error(ctx, "service.Signup GenerateRefreshToken failed: %v", err)
+		return nil, "", "", err
+	}
+
+	util.Info(ctx, "service.Signup success user=%s", user.ID)
+	return user, accessToken, refreshToken, nil
 }
 
-func (s *authService) Login(req *model.LoginRequest, ctx context.Context) (*model.User, string, error) {
+func (s *authService) Login(req *model.LoginRequest, ctx context.Context) (*model.User, string, string, error) {
 	util.Info(ctx, "service.Login start email=%s", req.Email)
 	email := req.Email
 	password := req.Password
@@ -129,26 +140,32 @@ func (s *authService) Login(req *model.LoginRequest, ctx context.Context) (*mode
 	user, err := s.repo.GetUserByEmail(ctx, email)
 	if err != nil {
 		util.Error(ctx, "service.Login repo error: %v", err)
-		return nil, "", err
+		return nil, "", "", err
 	}
 
 	if user == nil {
 		util.Error(ctx, "service.Login user not found email=%s", email)
-		return nil, "", errors.New("invalid credentials")
+		return nil, "", "", errors.New("invalid credentials")
 	}
 
 	err = util.CheckPassword(password, user.Password)
 	if err != nil {
 		util.Error(ctx, "service.Login password check failed: %v", err)
-		return nil, "", errors.New("invalid credentials")
+		return nil, "", "", errors.New("invalid credentials")
 	}
 
-	token, err := util.GenerateJWT(user.ID)
+	accessToken, err := util.GenerateAccessToken(user.ID)
 	if err != nil {
-		util.Error(ctx, "service.Login GenerateJWT failed: %v", err)
-		return nil, "", err
+		util.Error(ctx, "service.Login GenerateAccessToken failed: %v", err)
+		return nil, "", "", err
 	}
 
-	util.Info(ctx, "service.Login success user=%s tokenLen=%d", user.ID, len(token))
-	return user, token, nil
+	refreshToken, err := util.GenerateRefreshToken(user.ID)
+	if err != nil {
+		util.Error(ctx, "service.Login GenerateRefreshToken failed: %v", err)
+		return nil, "", "", err
+	}
+
+	util.Info(ctx, "service.Login success user=%s", user.ID)
+	return user, accessToken, refreshToken, nil
 }
