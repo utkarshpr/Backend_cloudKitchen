@@ -24,7 +24,7 @@ func (c *ProfileController) GetProfile(w http.ResponseWriter, r *http.Request) {
 	email := r.URL.Query().Get("email")
 	profile, err := c.service.GetProfile(ctx, email)
 	if err != nil {
-		http.Error(w, "Profile not found", http.StatusNotFound)
+		util.WriteErrorResponse(w, requestId, "Profile not found"+err.Error(), "PROFILE_NOT_FOUND", http.StatusNotFound)
 		return
 	}
 	util.Info(ctx, "New Profile Controller [Started]")
