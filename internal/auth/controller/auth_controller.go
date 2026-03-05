@@ -8,15 +8,12 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
 
 type AuthController struct {
 	service service.AuthService
 }
-
-
 
 func NewAuthController(service service.AuthService) *AuthController {
 	return &AuthController{
@@ -26,25 +23,15 @@ func NewAuthController(service service.AuthService) *AuthController {
 
 func (a *AuthController) Signup(w http.ResponseWriter, r *http.Request) {
 
-	var req model.SignupRequest
 	ctx := r.Context()
 	requestID := ctx.Value(constants.RequestIDKey).(string)
-	util.Info(ctx, "controller.Signup received request id=%s", requestID)
 
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
+	var req model.SignupRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(ctx, "controller.Signup invalid body: %v", err)
 
-		resp := util.APIResponse{
-			RequestID: requestID,
-			Success:   false,
-			Message:   constants.InvalidRequestBody,
-			ErrorCode: constants.ErrInvalidRequest,
-			Data:      nil,
-		}
-
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(resp)
+		util.WriteErrorResponse(w, requestID, constants.InvalidRequestBody, constants.ErrInvalidRequest, http.StatusBadRequest)
 		return
 	}
 
@@ -52,26 +39,19 @@ func (a *AuthController) Signup(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		util.Error(ctx, "controller.Signup service error: %v", err)
 
-		resp := util.APIResponse{
-			RequestID: requestID,
-			Success:   false,
-			Message:   err.Error(),
-			ErrorCode: constants.ErrSignupFailed,
-			Data:      nil,
-		}
-
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(resp)
+		util.WriteErrorResponse(w, requestID, err.Error(), constants.ErrSignupFailed, http.StatusBadRequest)
 		return
 	}
-	util.Info(ctx, "controller.Signup service returned user=%s", user.ID)
 
 	userResponse := &model.UserResponse{
-		ID:        user.ID,
-		Name:      user.Name,
-		Email:     user.Email,
-		Provider:  user.Provider,
-		CreatedAt: user.CreatedAt,
+		ID:             user.ID,
+		Name:           user.Name,
+		Email:          user.Email,
+		Provider:       user.Provider,
+		MobileNumber:   user.MobileNumber,
+		ProfilePicture: user.ProfilePicture,
+		Addresses:      user.Addresses,
+		CreatedAt:      user.CreatedAt,
 	}
 
 	data := &model.SignupResponse{
@@ -89,30 +69,19 @@ func (a *AuthController) Signup(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
-	util.Info(ctx, "controller.Signup response sent for user=%s", user.ID)
 }
 
 func (a *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 
-	var req model.LoginRequest
 	ctx := r.Context()
 	requestID := ctx.Value(constants.RequestIDKey).(string)
-	util.Info(ctx, "controller.Login received request id=%s", requestID)
 
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
+	var req model.LoginRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(ctx, "controller.Login invalid body: %v", err)
 
-		resp := util.APIResponse{
-			RequestID: requestID,
-			Success:   false,
-			Message:   constants.InvalidRequestBody,
-			ErrorCode: constants.ErrInvalidRequest,
-			Data:      nil,
-		}
-
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(resp)
+		util.WriteErrorResponse(w, requestID, constants.InvalidRequestBody, constants.ErrInvalidRequest, http.StatusBadRequest)
 		return
 	}
 
@@ -120,26 +89,19 @@ func (a *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		util.Error(ctx, "controller.Login service error: %v", err)
 
-		resp := util.APIResponse{
-			RequestID: requestID,
-			Success:   false,
-			Message:   constants.InvalidCredentials,
-			ErrorCode: constants.ErrInvalidCredsCode,
-			Data:      nil,
-		}
-
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(resp)
+		util.WriteErrorResponse(w, requestID, constants.InvalidCredentials, constants.ErrInvalidCredsCode, http.StatusUnauthorized)
 		return
 	}
-	util.Info(ctx, "controller.Login service returned user=%s", user.ID)
 
 	userResponse := &model.UserResponse{
-		ID:        user.ID,
-		Name:      user.Name,
-		Email:     user.Email,
-		Provider:  user.Provider,
-		CreatedAt: user.CreatedAt,
+		ID:             user.ID,
+		Name:           user.Name,
+		Email:          user.Email,
+		Provider:       user.Provider,
+		MobileNumber:   user.MobileNumber,
+		ProfilePicture: user.ProfilePicture,
+		Addresses:      user.Addresses,
+		CreatedAt:      user.CreatedAt,
 	}
 
 	data := &model.LoginResponse{
@@ -157,59 +119,38 @@ func (a *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
-	util.Info(ctx, "controller.Login response sent for user=%s", user.ID)
 }
-
 func (a *AuthController) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 	requestID := ctx.Value(constants.RequestIDKey).(string)
-	util.Info(ctx, "controller.GoogleLogin received request id=%s", requestID)
 
 	var req model.GoogleLoginRequest
 
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		util.Error(ctx, "controller.GoogleLogin invalid body: %v", err)
-		resp := util.APIResponse{
-			RequestID: requestID,
-			Success:   false,
-			Message:   constants.InvalidRequestBody,
-			ErrorCode: constants.ErrInvalidRequest,
-			Data:      nil,
-		}
 
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(resp)
-
+		util.WriteErrorResponse(w, requestID, constants.InvalidRequestBody, constants.ErrInvalidRequest, http.StatusBadRequest)
 		return
 	}
 
 	user, accessToken, refreshToken, err := a.service.GoogleLogin(ctx, req.IDToken)
-
 	if err != nil {
 		util.Error(ctx, "controller.GoogleLogin service error: %v", err)
-		resp := util.APIResponse{
-			RequestID: requestID,
-			Success:   false,
-			Message:   err.Error(),
-			ErrorCode: constants.ErrGoogleLoginFailed,
-			Data:      nil,
-		}
 
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(resp)
+		util.WriteErrorResponse(w, requestID, err.Error(), constants.ErrGoogleLoginFailed, http.StatusUnauthorized)
 		return
 	}
 
-	util.Info(ctx, "controller.GoogleLogin service returned user=%s", user.ID)
-
 	userResponse := &model.UserResponse{
-		ID:        user.ID,
-		Name:      user.Name,
-		Email:     user.Email,
-		Provider:  user.Provider,
-		CreatedAt: user.CreatedAt,
+		ID:             user.ID,
+		Name:           user.Name,
+		Email:          user.Email,
+		Provider:       user.Provider,
+		MobileNumber:   user.MobileNumber,
+		ProfilePicture: user.ProfilePicture,
+		Addresses:      user.Addresses,
+		CreatedAt:      user.CreatedAt,
 	}
 
 	data := &model.LoginResponse{
@@ -227,24 +168,16 @@ func (a *AuthController) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
-	util.Info(ctx, "controller.GoogleLogin response sent for user=%s", user.ID)
 }
-
 func (a *AuthController) Refresh(w http.ResponseWriter, r *http.Request) {
-	var req *model.RefreshRequest
+
 	ctx := r.Context()
 	requestID := ctx.Value(constants.RequestIDKey).(string)
+
+	var req model.RefreshRequest
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		util.Error(ctx, "controller.Refresh invalid body: %v", err)
-		resp := util.APIResponse{
-			RequestID: requestID,
-			Success:   false,
-			Message:   constants.InvalidRequestBody,
-			ErrorCode: constants.ErrInvalidRequest,
-			Data:      nil,
-		}
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(resp)
+		util.WriteErrorResponse(w, requestID, constants.InvalidRequestBody, constants.ErrInvalidRequest, http.StatusBadRequest)
 		return
 	}
 
@@ -253,47 +186,25 @@ func (a *AuthController) Refresh(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil || !token.Valid {
-		util.Error(ctx, "controller.Refresh invalid refresh token: %v", err)
-		resp := util.APIResponse{
-			RequestID: requestID,
-			Success:   false,
-			Message:   "invalid refresh token",
-			ErrorCode: constants.ErrInvalidRefreshToken,
-			Data:      nil,
-		}
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(resp)
+		util.WriteErrorResponse(w, requestID, "invalid refresh token", constants.ErrInvalidRefreshToken, http.StatusUnauthorized)
 		return
 	}
 
-	claims := token.Claims.(jwt.MapClaims)
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		util.WriteErrorResponse(w, requestID, "invalid token claims", constants.ErrInvalidTokenClaims, http.StatusUnauthorized)
+		return
+	}
+
 	userID, ok := claims["user_id"].(string)
 	if !ok {
-		util.Error(ctx, "controller.Refresh invalid token claims")
-		resp := util.APIResponse{
-			RequestID: requestID,
-			Success:   false,
-			Message:   "invalid token claims",
-			ErrorCode: constants.ErrInvalidTokenClaims,
-			Data:      nil,
-		}
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(resp)
+		util.WriteErrorResponse(w, requestID, "invalid user id", constants.ErrInvalidTokenClaims, http.StatusUnauthorized)
 		return
 	}
 
 	newAccessToken, err := util.GenerateAccessToken(userID)
 	if err != nil {
-		util.Error(ctx, "controller.Refresh token generation failed: %v", err)
-		resp := util.APIResponse{
-			RequestID: requestID,
-			Success:   false,
-			Message:   "token generation failed",
-			ErrorCode: constants.ErrTokenGenerationFailed,
-			Data:      nil,
-		}
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(resp)
+		util.WriteErrorResponse(w, requestID, "token generation failed", constants.ErrTokenGenerationFailed, http.StatusInternalServerError)
 		return
 	}
 
@@ -301,8 +212,11 @@ func (a *AuthController) Refresh(w http.ResponseWriter, r *http.Request) {
 		RequestID: requestID,
 		Success:   true,
 		Message:   "token refreshed successfully",
-		Data:      gin.H{"access_token": newAccessToken},
+		Data: map[string]string{
+			"access_token": newAccessToken,
+		},
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
 }
