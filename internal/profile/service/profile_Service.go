@@ -75,10 +75,6 @@ func (s *ProfileService) UpdateProfile(ctx context.Context, userID string, req *
 	return nil
 }
 
-
-
-
-
 func (s *ProfileService) DeleteProfile(ctx context.Context, userID string) error {
 	return s.repo.DeleteProfile(ctx, userID)
 }

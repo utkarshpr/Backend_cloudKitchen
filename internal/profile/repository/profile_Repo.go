@@ -16,15 +16,18 @@ func NewProfileRepository(db *pgxpool.Pool) *ProfileRepository {
 	return &ProfileRepository{db: db}
 }
 
-// Implement methods for profile repository (e.g., GetProfile, UpdateProfile, DeleteProfile)
-func (r *ProfileRepository) GetProfile(ctx context.Context, email string) (*profilemodel.Profile, error) {
+func (r *ProfileRepository) GetProfile(ctx context.Context, userID string) (*profilemodel.Profile, error) {
+
 	query := `
-	SELECT id, name, email,provider, mobile_number, profile_picture
+	SELECT id, name, email, provider, mobile_number, profile_picture
 	FROM users
-	WHERE email = $1
+	WHERE id = $1
 	`
-	row := r.db.QueryRow(ctx, query, email)
+
+	row := r.db.QueryRow(ctx, query, userID)
+
 	var profile profilemodel.Profile
+
 	err := row.Scan(
 		&profile.ID,
 		&profile.Name,
@@ -33,24 +36,29 @@ func (r *ProfileRepository) GetProfile(ctx context.Context, email string) (*prof
 		&profile.MobileNumber,
 		&profile.ProfilePicture,
 	)
+
 	if err != nil {
 		return nil, err
 	}
 
 	queryAddresses := `
-	SELECT id, user_id, label, street, city, state, zip_code,latitude, longitude, is_default
+	SELECT id, user_id, label, street, city, state, zip_code, latitude, longitude, is_default
 	FROM addresses
-	WHERE user_id =  $1
+	WHERE user_id = $1
 	`
-	rows, err := r.db.Query(ctx, queryAddresses, profile.ID)
+
+	rows, err := r.db.Query(ctx, queryAddresses, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
 	var addresses []model.AddressModel
+
 	for rows.Next() {
+
 		var address model.AddressModel
+
 		err := rows.Scan(
 			&address.ID,
 			&address.UserID,
@@ -63,13 +71,20 @@ func (r *ProfileRepository) GetProfile(ctx context.Context, email string) (*prof
 			&address.Longitude,
 			&address.IsDefault,
 		)
+
 		if err != nil {
 			return nil, err
 		}
+
 		addresses = append(addresses, address)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	profile.Addresses = addresses
+
 	return &profile, nil
 }
 
@@ -156,12 +171,13 @@ func (r *ProfileRepository) CreateAddress(ctx context.Context, addr *model.Addre
 
 func (r *ProfileRepository) DeleteProfile(ctx context.Context, userID string) error {
 
-	query := `
-	DELETE FROM users
-	WHERE id = $1
-	`
+	// delete addresses first (if cascade not enabled)
+	_, err := r.db.Exec(ctx, `DELETE FROM addresses WHERE user_id=$1`, userID)
+	if err != nil {
+		return err
+	}
 
-	_, err := r.db.Exec(ctx, query, userID)
+	_, err = r.db.Exec(ctx, `DELETE FROM users WHERE id=$1`, userID)
 
 	return err
 }
