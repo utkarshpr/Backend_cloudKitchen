@@ -21,4 +21,7 @@ func RegisterAuthRoutes(router *gin.Engine, controller *controller.AuthControlle
 	auth.POST("/google", func(c *gin.Context) {
 		controller.GoogleLogin(c.Writer, c.Request)
 	})
+	auth.POST("/refresh", func(c *gin.Context) {
+		controller.Refresh(c.Writer, c.Request)
+	})
 }

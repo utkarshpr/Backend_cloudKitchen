@@ -25,5 +25,8 @@ type ContextKey string
 const RequestIDKey ContextKey = "request_id"
 
 const (
-	ErrGoogleLoginFailed = "GOOGLE_LOGIN_FAILED"
+	ErrGoogleLoginFailed     = "GOOGLE_LOGIN_FAILED"
+	ErrInvalidRefreshToken   = "INVALID_REFRESH_TOKEN"
+	ErrInvalidTokenClaims    = "INVALID_TOKEN_CLAIMS"
+	ErrTokenGenerationFailed = "TOKEN_GENERATION_FAILED"
 )
