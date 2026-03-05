@@ -2,9 +2,10 @@ package middleware
 
 import (
 	"context"
+	"net/http"
 	"strings"
 
-	"cloud-kitchen/pkg/constants"
+	constant "cloud-kitchen/pkg/constants"
 	"cloud-kitchen/pkg/util"
 
 	"github.com/gin-gonic/gin"
@@ -18,7 +19,7 @@ func RequestIDMiddleware() gin.HandlerFunc {
 
 		requestID := uuid.New().String()
 
-		ctx := context.WithValue(c.Request.Context(), constants.RequestIDKey, requestID)
+		ctx := context.WithValue(c.Request.Context(), constant.RequestIDKey, requestID)
 
 		c.Request = c.Request.WithContext(ctx)
 
@@ -38,7 +39,13 @@ func AuthMiddleware() gin.HandlerFunc {
 		auth := c.GetHeader("Authorization")
 
 		if auth == "" {
-			c.JSON(401, gin.H{"error": "no token"})
+			util.WriteErrorResponse(
+				c.Writer,
+				c.Request.Context().Value(constant.RequestIDKey).(string),
+				"Invalid token",
+				"Authorization header missing",
+				http.StatusUnauthorized,
+			)
 			c.Abort()
 			return
 		}
@@ -50,7 +57,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		})
 
 		if err != nil || !token.Valid {
-			c.JSON(401, gin.H{"error": "invalid token"})
+			util.WriteErrorResponse(c.Writer, c.Request.Context().Value(constant.RequestIDKey).(string), "Invalid token", "invalid token", 401)
 			c.Abort()
 			return
 		}
