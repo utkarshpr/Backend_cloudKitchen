@@ -73,12 +73,95 @@ func (r *ProfileRepository) GetProfile(ctx context.Context, email string) (*prof
 	return &profile, nil
 }
 
-func (r *ProfileRepository) UpdateProfile(ctx context.Context, profile *profilemodel.Profile) error {
-	// Implement logic to update profile in the database using r.db
-	return nil
+func (r *ProfileRepository) UpdateUserProfile(ctx context.Context, userID string, req *profilemodel.UpdateProfileRequest) error {
+
+	query := `
+	UPDATE users
+	SET name=$1,
+	    mobile_number=$2,
+	    profile_picture=$3
+	WHERE id=$4
+	`
+
+	_, err := r.db.Exec(
+		ctx,
+		query,
+		req.Name,
+		req.MobileNumber,
+		req.ProfilePicture,
+		userID,
+	)
+
+	return err
 }
 
-func (r *ProfileRepository) DeleteProfile(ctx context.Context, userID int) error {
-	// Implement logic to delete profile from the database using r.db
-	return nil
+func (r *ProfileRepository) UpdateAddress(ctx context.Context, addr *model.AddressModel) error {
+
+	query := `
+	UPDATE addresses
+	SET label=$1,
+	    street=$2,
+	    city=$3,
+	    state=$4,
+	    zip_code=$5,
+	    latitude=$6,
+	    longitude=$7,
+	    is_default=$8
+	WHERE id=$9 AND user_id=$10
+	`
+
+	_, err := r.db.Exec(
+		ctx,
+		query,
+		addr.Label,
+		addr.Street,
+		addr.City,
+		addr.State,
+		addr.ZipCode,
+		addr.Latitude,
+		addr.Longitude,
+		addr.IsDefault,
+		addr.ID,
+		addr.UserID,
+	)
+
+	return err
+}
+
+func (r *ProfileRepository) CreateAddress(ctx context.Context, addr *model.AddressModel) error {
+
+	query := `
+	INSERT INTO addresses
+	(id, user_id, label, street, city, state, zip_code, latitude, longitude, is_default)
+	VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+	`
+
+	_, err := r.db.Exec(
+		ctx,
+		query,
+		addr.ID,
+		addr.UserID,
+		addr.Label,
+		addr.Street,
+		addr.City,
+		addr.State,
+		addr.ZipCode,
+		addr.Latitude,
+		addr.Longitude,
+		addr.IsDefault,
+	)
+
+	return err
+}
+
+func (r *ProfileRepository) DeleteProfile(ctx context.Context, userID string) error {
+
+	query := `
+	DELETE FROM users
+	WHERE id = $1
+	`
+
+	_, err := r.db.Exec(ctx, query, userID)
+
+	return err
 }
